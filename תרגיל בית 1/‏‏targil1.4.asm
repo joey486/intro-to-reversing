@@ -18,13 +18,12 @@ section '.data' data readable writable
     input_char      db 0
     new_line        db 13, 10, 0
     
-    cursor_home     db 27, '[H', 0              ; Move cursor to home position
-    clear_screen_seq db 27, '[2J', 27, '[H', 0  ; Clear screen and move to home
+    cursor_home     db 27, '[H', 0
+    clear_screen_seq db 27, '[2J', 27, '[H', 0
 
 section '.text' code readable executable
 
 start:
-    ; Clear screen once at the beginning
     lea     esi, [clear_screen_seq]
     call    print_str
     
