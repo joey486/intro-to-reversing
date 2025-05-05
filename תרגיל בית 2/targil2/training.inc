@@ -231,13 +231,15 @@ section '.idata' import data readable
  
 library kernel,'kernel32.dll',\
         msvcrt,'msvcrt.dll'
- 
-import  kernel,\
+
+import kernel,\
         ExitProcess,'ExitProcess',\
         GetStdHandle,'GetStdHandle',\
-        ReadFile,'ReadFile'
+        ReadFile,'ReadFile',\
+        CreateFile,'CreateFileA',\
+        CloseHandle,'CloseHandle'
 
-import  msvcrt,\
-        printf, 'printf',\
-		scanf, 'scanf', \
-        strtoul, 'strtoul'
+import msvcrt,\
+        printf,'printf',\
+        scanf,'scanf',\
+        strtoul,'strtoul'
