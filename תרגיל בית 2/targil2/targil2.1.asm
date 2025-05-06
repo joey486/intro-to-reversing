@@ -12,35 +12,25 @@ section '.data' data readable writable
     hex_prompt db 'Enter a hex Big Endien number (0x): ', 0
     file_prompt db 'Number from input.txt: ', 0
 
-    input_char      db 0
-    hex_number      db 0
-    input_fmt       db '%c', 0
+    input_char   db 0
+    input_fmt    db '%c', 0
 
-
-    filename db 'input.txt', 0
-    error_msg db 'Error', 13, 10, 0
-    buffer rb 32        
-    buffer_size equ 32  
-    bytes_read dd 0     
-    fileHandle  dd ?
+    filename     db 'input.txt', 0
+    error_msg    db 'Error', 13, 10, 0
+    buffer       rb 32        
+    bytes_read   dd 0     
+    fileHandle   dd ?
 
     szKeyPath    db 'Software\Assembly', 0  
-    handleKey   dd 0
-    szValueName   db 'input',0
-    reg_buffer      rb 256
-    bufferSize  dd 256
-
-    dwType      dd 0                    ; To store the type of the value
-    dwBufferSize dd 256                 ; Size of the buffer
-
-    messageCaption  db 'Registry Value', 0
-    errorMessage   db 'Error accessing registry', 0
-    errorCaption   db 'Error', 0
-
-
-section '.bss' data readable writeable
-    hKey dd ?
+    handleKey    dd 0
+    szValueName  db 'input',0
+    reg_buffer   rb 256
     
+    dwType       dd 0                    ; To store the type of the value
+    dwBufferSize dd 256                  ; Size of the buffer
+
+    errorMessage  db 'Error accessing registry', 0
+    errorCaption  db 'Error', 0
 
 section '.text' code readable executable
 start:
@@ -48,90 +38,84 @@ start:
     call [printf]
     add esp, 4
 
-    lea     eax, [input_char]
-    push    eax
-    push    input_fmt
-    call    [scanf]
-    add     esp, 8
+    lea  eax, [input_char]
+    push eax
+    push input_fmt
+    call [scanf]
+    add  esp, 8
 
-    mov     al, [input_char]
-    cmp     al, '1'
-    je input_hex
-    cmp     al, '2'
-    je input_txt
-    cmp     al, '3'
-    je input_registry
-    cmp     al, 'q'
-    je exit_program
-    jmp start
+    mov  al, [input_char]
+    cmp  al, '1'
+    je   input_hex
+    cmp  al, '2'
+    je   input_txt
+    cmp  al, '3'
+    je   input_registry
+    cmp  al, 'q'
+    je   exit_program
+    jmp  start
 
 input_hex:
-    mov esi, hex_prompt
+    mov  esi, hex_prompt
     call print_str
     call read_hex
-
     bswap eax
-
     call print_eax
-    jmp exit_program
+    jmp  exit_program
 
 input_txt:
     push file_prompt
     call [printf]
-    add esp, 4
+    add  esp, 4
     
     ; CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
-    push 0                       ; hTemplateFile - optional template file (NULL)
-    push FILE_ATTRIBUTE_NORMAL   ; dwFlagsAndAttributes
-    push OPEN_EXISTING           ; dwCreationDisposition - only open existing file
-    push 0                       ; lpSecurityAttributes - default security (NULL)
-    push 0                       ; dwShareMode - no sharing
-    push GENERIC_READ            ; dwDesiredAccess - read access only
-    push filename                ; lpFileName - path to the file
+    push 0         
+    push FILE_ATTRIBUTE_NORMAL
+    push OPEN_EXISTING       
+    push 0
+    push 0
+    push GENERIC_READ
+    push filename
     call [CreateFile]
-    mov [fileHandle], eax
+    mov  [fileHandle], eax
 
-    cmp eax, INVALID_HANDLE_VALUE
-    je error_exit
+    cmp  eax, INVALID_HANDLE_VALUE
+    je   error_exit
 
     ; ReadFile(fileHandle, buffer, 256, bytes_read, 0)
-    push 0                       ; lpOverlapped - synchronous I/O (NULL)
-    push bytes_read              ; lpNumberOfBytesRead - will contain bytes read
-    push 256                     ; nNumberOfBytesToRead - read up to 256 bytes
-    push buffer                  ; lpBuffer - where to store read data
-    push [fileHandle]            ; hFile - handle to the open file
+    push 0
+    push bytes_read
+    push 256
+    push buffer
+    push [fileHandle]
     call [ReadFile]
 
-    mov eax, [bytes_read]
-    mov byte [buffer + eax], 0    ; Null-terminate the buffer
+    mov  eax, [bytes_read]
+    mov  byte [buffer + eax], 0
 
-    push 16                      ; base (16 for hexadecimal)
-    push 0                       ; endptr (NULL)
-    push buffer                  ; str (the string to convert)
+    push 16     
+    push 0   
+    push buffer     
     call [strtoul]
+    add  esp, 12      ; Clean up stack after cdecl function
 
-    bswap eax                    ; Convert from big-endian to little-endian
+    bswap eax   
+    call print_eax  
 
-    call print_eax               ; Display the number
-
-    ; CloseHandle(fileHandle)
-    push [fileHandle]            ; hObject - handle to close
+    push [fileHandle] 
     call [CloseHandle]
-
-    jmp exit_program
-
-
+    jmp  exit_program
 
 input_registry:
-    ; --- Open the Registry Key ---
-    push handleKey         ; lpResult (pointer to store the opened handle)
-    push szKeyPath         ; lpSubKey (registry key path)
-    push HKEY_CURRENT_USER ; hKey (predefined handle)
+    ; Open the Registry Key
+    push handleKey
+    push szKeyPath 
+    push HKEY_CURRENT_USER
     call [RegOpenKeyA]
     test eax, eax
-    jne error
+    jne  error
 
-    ; --- Read the Value ---
+    ; Read the Value
     push dwBufferSize      
     push reg_buffer        
     push dwType            
@@ -140,38 +124,38 @@ input_registry:
     push [handleKey]
     call [RegQueryValueExA]
     test eax, eax
-    jne error
+    jne  error
 
-    ; --- Show the value in the terminal ---
+    ; Convert and display
     push 16
     push 0
     push reg_buffer
     call [strtoul]
+    add  esp, 12      ; Clean up stack after cdecl function
+    
     bswap eax
     call print_eax
     
-    ; newline for better formatting
-    push dword 10
-    call [putchar]
-    add esp, 4
-
-    ; --- Close the Registry Key ---
+    ; Close the Registry Key
     push [handleKey]
     call [RegCloseKey]
-    jmp exit_program
+    jmp  exit_program
 
 error:
-    invoke MessageBox, 0, errorMessage, errorCaption, 0
-    
+    push 0
+    push errorCaption
+    push errorMessage
+    push 0
+    call [MessageBoxA]    
 
 error_exit:
-    push    error_msg
-    call    [printf]
-    add     esp, 4
-    jmp exit_program
-
+    push error_msg
+    call [printf]
+    add  esp, 4
+    jmp  exit_program
 
 exit_program:
-    invoke ExitProcess, 0
+    push 0
+    call [ExitProcess]
 
 include 'training.inc'
