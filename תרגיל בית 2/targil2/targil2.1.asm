@@ -11,18 +11,38 @@ section '.data' data readable writable
               db 'Please choose one (or "q" to quit):', 13, 10, 0
     hex_prompt db 'Enter a hex Big Endien number (0x): ', 0
     file_prompt db 'Number from input.txt: ', 0
+
     input_char      db 0
     hex_number      db 0
     input_fmt       db '%c', 0
+
+
     filename db 'input.txt', 0
-    error_msg db 'Error: Could not open file.', 13, 10, 0
-    buffer rb 32        ; Reserve bytes for buffer in .data section
-    buffer_size equ 32  ; Size of the buffer
-    bytes_read dd 0     ; For storing number of bytes read
+    error_msg db 'Error', 13, 10, 0
+    buffer rb 32        
+    buffer_size equ 32  
+    bytes_read dd 0     
     fileHandle  dd ?
 
-section '.text' code readable executable
+    szKeyPath    db 'Software\Assembly', 0  
+    handleKey   dd 0
+    szValueName   db 'input',0
+    reg_buffer      rb 256
+    bufferSize  dd 256
 
+    dwType      dd 0                    ; To store the type of the value
+    dwBufferSize dd 256                 ; Size of the buffer
+
+    messageCaption  db 'Registry Value', 0
+    errorMessage   db 'Error accessing registry', 0
+    errorCaption   db 'Error', 0
+
+
+section '.bss' data readable writeable
+    hKey dd ?
+    
+
+section '.text' code readable executable
 start:
     push menu_text
     call [printf]
@@ -40,15 +60,10 @@ start:
     cmp     al, '2'
     je input_txt
     cmp     al, '3'
-    je input_assembly
+    je input_registry
     cmp     al, 'q'
     je exit_program
-    ; If the input is not valid, print the menu again
-    push menu_text
-    call [printf]
-    add esp, 4
     jmp start
-
 
 input_hex:
     mov esi, hex_prompt
@@ -65,42 +80,89 @@ input_txt:
     call [printf]
     add esp, 4
     
-    invoke CreateFile, filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0
+    ; CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
+    push 0                       ; hTemplateFile - optional template file (NULL)
+    push FILE_ATTRIBUTE_NORMAL   ; dwFlagsAndAttributes
+    push OPEN_EXISTING           ; dwCreationDisposition - only open existing file
+    push 0                       ; lpSecurityAttributes - default security (NULL)
+    push 0                       ; dwShareMode - no sharing
+    push GENERIC_READ            ; dwDesiredAccess - read access only
+    push filename                ; lpFileName - path to the file
+    call [CreateFile]
     mov [fileHandle], eax
 
     cmp eax, INVALID_HANDLE_VALUE
-    je file_error
+    je error_exit
 
-    invoke ReadFile, [fileHandle], buffer, 256, bytes_read, 0
-
+    ; ReadFile(fileHandle, buffer, 256, bytes_read, 0)
+    push 0                       ; lpOverlapped - synchronous I/O (NULL)
+    push bytes_read              ; lpNumberOfBytesRead - will contain bytes read
+    push 256                     ; nNumberOfBytesToRead - read up to 256 bytes
+    push buffer                  ; lpBuffer - where to store read data
+    push [fileHandle]            ; hFile - handle to the open file
+    call [ReadFile]
 
     mov eax, [bytes_read]
-    mov byte [buffer + eax], 0    ; add null terminator
+    mov byte [buffer + eax], 0    ; Null-terminate the buffer
 
-    push 16              ; base = 16 (hex)
-    push 0               ; endptr = NULL (not used)
-    push buffer          ; pointer to the string
+    push 16                      ; base (16 for hexadecimal)
+    push 0                       ; endptr (NULL)
+    push buffer                  ; str (the string to convert)
     call [strtoul]
 
+    bswap eax                    ; Convert from big-endian to little-endian
+
+    call print_eax               ; Display the number
+
+    ; CloseHandle(fileHandle)
+    push [fileHandle]            ; hObject - handle to close
+    call [CloseHandle]
+
+    jmp exit_program
+
+
+
+input_registry:
+    ; --- Open the Registry Key ---
+    push handleKey         ; lpResult (pointer to store the opened handle)
+    push szKeyPath         ; lpSubKey (registry key path)
+    push HKEY_CURRENT_USER ; hKey (predefined handle)
+    call [RegOpenKeyA]
+    test eax, eax
+    jne error
+
+    ; --- Read the Value ---
+    push dwBufferSize      
+    push reg_buffer        
+    push dwType            
+    push 0       
+    push szValueName
+    push [handleKey]
+    call [RegQueryValueExA]
+    test eax, eax
+    jne error
+
+    ; --- Show the value in the terminal ---
+    push 16
+    push 0
+    push reg_buffer
+    call [strtoul]
     bswap eax
-
     call print_eax
+    
+    ; newline for better formatting
+    push dword 10
+    call [putchar]
+    add esp, 4
 
-    ; close file handle
-    invoke CloseHandle, [fileHandle]
+    ; --- Close the Registry Key ---
+    push [handleKey]
+    call [RegCloseKey]
+    jmp exit_program
 
-    ; exit
-    invoke ExitProcess, 0
-
-file_error:
-    mov esi, error_msg
-    call print_str
-    invoke ExitProcess, 1
-
-
-
-input_assembly:
-
+error:
+    invoke MessageBox, 0, errorMessage, errorCaption, 0
+    
 
 error_exit:
     push    error_msg
@@ -110,5 +172,6 @@ error_exit:
 
 
 exit_program:
+    invoke ExitProcess, 0
 
 include 'training.inc'

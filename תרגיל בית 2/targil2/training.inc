@@ -230,10 +230,12 @@ read_line:
 section '.idata' import data readable
  
 library kernel,'kernel32.dll',\
-        msvcrt,'msvcrt.dll'
+    msvcrt,'msvcrt.dll',\
+    user32,'user32.dll',\
+    advapi32,'advapi32.dll'
 
 import kernel,\
-        ExitProcess,'ExitProcess',\
+    ExitProcess,'ExitProcess',\
         GetStdHandle,'GetStdHandle',\
         ReadFile,'ReadFile',\
         CreateFile,'CreateFileA',\
@@ -242,4 +244,13 @@ import kernel,\
 import msvcrt,\
         printf,'printf',\
         scanf,'scanf',\
-        strtoul,'strtoul'
+        strtoul,'strtoul', \
+        putchar,'putchar'
+
+import user32,\
+        MessageBox,'MessageBoxA'
+
+import advapi32,\
+    RegOpenKeyA,'RegOpenKeyA',\
+    RegQueryValueExA,'RegQueryValueExA',\
+    RegCloseKey,'RegCloseKey'
