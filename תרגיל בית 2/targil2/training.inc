@@ -241,14 +241,14 @@ import kernel,\
         CreateFile,'CreateFileA',\
         CloseHandle,'CloseHandle'
 
+import user32,\
+           MessageBoxA, 'MessageBoxA'
+
 import msvcrt,\
         printf,'printf',\
         scanf,'scanf',\
         strtoul,'strtoul', \
         putchar,'putchar'
-
-import user32,\
-        MessageBox,'MessageBoxA'
 
 import advapi32,\
     RegOpenKeyA,'RegOpenKeyA',\
