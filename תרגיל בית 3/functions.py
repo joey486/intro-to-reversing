@@ -1,6 +1,11 @@
+# Name: Yossef Heifetz
+
+
+# Stage 0
 def first_string():
     return "All Hail The Queen!"
 
+# Stage 1
 def transform_string(input_string):
     result = []
     
@@ -12,6 +17,7 @@ def transform_string(input_string):
     # Join the transformed characters into a single string
     return ''.join(result)
 
+# Stage 2
 def xor_decrypt_2(target_str, key=0x41524241):
     result = b''
     # pad to multiple of 4 bytes
@@ -27,6 +33,7 @@ def xor_decrypt_2(target_str, key=0x41524241):
 
     return result.rstrip(b'\x00')
 
+# Stage 3
 def extract_valid_password():
     # Step 1: Raw bytes as found in the binary (little-endian)
     raw_bytes = [
@@ -60,7 +67,14 @@ def extract_valid_password():
     return ' '.join(indices)
 
 
-print(transform_string("intro the rabbit hole"))
-input_needed = xor_decrypt_2("into the rabbit hole")
-print(input_needed.decode('ascii'))
+print("Passwords: \n")
+# 0
+print(first_string())
+# 1
+print(transform_string("into the rabbit hole"))
+# 2
+print(xor_decrypt_2("into the rabbit hole").decode('ascii'))
+# 3
 print(extract_valid_password())
+
+
