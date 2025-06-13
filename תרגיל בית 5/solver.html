@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Path Finder</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            padding: 20px;
+        }
+        .maze-container {
+            background: #1a1a1a;
+            border: 2px solid #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .maze {
+            font-size: 16px;
+            line-height: 1.2;
+            letter-spacing: 2px;
+        }
+        .wall { color: #666; }
+        .path { color: #00ff00; }
+        .start { color: #ffff00; background: #333; }
+        .end { color: #ff0000; background: #333; }
+        .solution { color: #ff00ff; background: #333; }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 5px;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        .output {
+            background: #000;
+            border: 1px solid #00ff00;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        .grid-info {
+            color: #ffff00;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏰 Queen's Palace Maze Solver</h1>
+    
+    <div class="maze-container">
+        <div class="grid-info">
+            <strong>Movement Commands:</strong><br>
+            1 = RIGHT (+1) | 2 = DOWN (+16) | 3 = LEFT (-1) | 4 = UP (-16)
+        </div>
+        <div id="maze" class="maze"></div>
+    </div>
+    
+    <div class="controls">
+        <button onclick="findPath()">🔍 Find Path to Queen's Palace</button>
+        <button onclick="testPath()">✅ Test Current Path</button>
+        <button onclick="reset()">🔄 Reset</button>
+    </div>
+    
+    <div class="output">
+        <div><strong>Solution:</strong> <span id="solution">Click 'Find Path' to solve</span></div>
+        <div><strong>File Content:</strong> <span id="fileContent">-</span></div>
+        <div><strong>Path Length:</strong> <span id="pathLength">-</span></div>
+    </div>
+
+    <script>
+        // The maze string from IDA
+        const mazeString = "###################O####...########.##...#.########.##.###.########....###...X##################";
+        const width = 16; // Based on the movement logic (+16 = down row)
+        
+        let maze = [];
+        let startPos = -1;
+        let endPos = -1;
+        let currentPath = [];
+        
+        function initializeMaze() {
+            maze = mazeString.split('');
+            startPos = maze.indexOf('O');
+            endPos = maze.indexOf('X');
+            displayMaze();
+        }
+        
+        function displayMaze() {
+            const mazeDiv = document.getElementById('maze');
+            let html = '';
+            
+            for (let i = 0; i < maze.length; i++) {
+                if (i > 0 && i % width === 0) {
+                    html += '<br>';
+                }
+                
+                const char = maze[i];
+                let className = '';
+                
+                if (char === '#') className = 'wall';
+                else if (char === '.') className = 'path';
+                else if (char === 'O') className = 'start';
+                else if (char === 'X') className = 'end';
+                else if (char === '*') className = 'solution';
+                
+                html += `<span class="${className}">${char}</span>`;
+            }
+            
+            mazeDiv.innerHTML = html;
+        }
+        
+        function isValidMove(pos) {
+            return pos >= 0 && pos < maze.length && (maze[pos] === '.' || maze[pos] === 'X');
+        }
+        
+        function findPath() {
+            // Simple BFS pathfinding
+            const queue = [{pos: startPos, path: []}];
+            const visited = new Set();
+            visited.add(startPos);
+            
+            while (queue.length > 0) {
+                const {pos, path} = queue.shift();
+                
+                if (pos === endPos) {
+                    currentPath = path;
+                    displaySolution(path);
+                    return;
+                }
+                
+                // Try all 4 directions
+                const moves = [
+                    {dir: 1, cmd: '1', newPos: pos + 1},    // RIGHT
+                    {dir: 2, cmd: '2', newPos: pos + width}, // DOWN
+                    {dir: 3, cmd: '3', newPos: pos - 1},    // LEFT
+                    {dir: 4, cmd: '4', newPos: pos - width}  // UP
+                ];
+                
+                for (const move of moves) {
+                    const newPos = move.newPos;
+                    
+                    // Check bounds and walls
+                    if (newPos >= 0 && newPos < maze.length && !visited.has(newPos)) {
+                        // Check for horizontal wrapping (left/right moves)
+                        if ((move.dir === 1 && pos % width === width - 1) || 
+                            (move.dir === 3 && pos % width === 0)) {
+                            continue;
+                        }
+                        
+                        if (maze[newPos] === '.' || maze[newPos] === 'X') {
+                            visited.add(newPos);
+                            queue.push({
+                                pos: newPos, 
+                                path: [...path, move.cmd]
+                            });
+                        }
+                    }
+                }
+            }
+            
+            document.getElementById('solution').textContent = 'No path found!';
+        }
+        
+        function displaySolution(path) {
+            const solution = path.join('');
+            document.getElementById('solution').textContent = solution;
+            document.getElementById('fileContent').textContent = solution;
+            document.getElementById('pathLength').textContent = path.length + ' moves';
+            
+            // Highlight the path on the maze
+            const tempMaze = [...maze];
+            let pos = startPos;
+            
+            for (const move of path) {
+                switch(move) {
+                    case '1': pos += 1; break;      // RIGHT
+                    case '2': pos += width; break;  // DOWN
+                    case '3': pos -= 1; break;      // LEFT
+                    case '4': pos -= width; break;  // UP
+                }
+                if (tempMaze[pos] === '.') {
+                    tempMaze[pos] = '*';
+                }
+            }
+            
+            maze = tempMaze;
+            displayMaze();
+        }
+        
+        function testPath() {
+            if (currentPath.length === 0) {
+                alert('No path to test! Find a path first.');
+                return;
+            }
+            
+            let pos = startPos;
+            let valid = true;
+            
+            for (let i = 0; i < currentPath.length; i++) {
+                const move = currentPath[i];
+                const oldPos = pos;
+                
+                switch(move) {
+                    case '1': pos += 1; break;      // RIGHT
+                    case '2': pos += width; break;  // DOWN
+                    case '3': pos -= 1; break;      // LEFT
+                    case '4': pos -= width; break;  // UP
+                }
+                
+                // Check bounds and valid moves
+                if (pos < 0 || pos >= maze.length || 
+                    (maze[pos] !== '.' && maze[pos] !== 'X' && maze[pos] !== '*')) {
+                    alert(`Invalid move ${i+1}: ${move} from position ${oldPos} to ${pos}`);
+                    valid = false;
+                    break;
+                }
+            }
+            
+            if (valid && pos === endPos) {
+                alert('✅ Path is valid! You reached the Queen\'s palace!');
+            } else if (valid) {
+                alert('❌ Path is valid but doesn\'t reach the destination.');
+            }
+        }
+        
+        function reset() {
+            currentPath = [];
+            initializeMaze();
+            document.getElementById('solution').textContent = 'Click \'Find Path\' to solve';
+            document.getElementById('fileContent').textContent = '-';
+            document.getElementById('pathLength').textContent = '-';
+        }
+        
+        // Initialize on load
+        initializeMaze();
+    </script>
+</body>
+</html>
